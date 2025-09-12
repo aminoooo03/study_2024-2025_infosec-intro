@@ -1,0 +1,121 @@
+def hex_to_text(hex_str):
+    """Convert hex string to text"""
+    bytes_obj = bytes.fromhex(hex_str)
+    return bytes_obj.decode('cp1251')
+
+def text_to_hex(text):
+    """Convert text to hex string"""
+    return text.encode('cp1251').hex().upper()
+
+def xor_hex(hex1, hex2):
+    """XOR two hex strings"""
+    bytes1 = bytes.fromhex(hex1)
+    bytes2 = bytes.fromhex(hex2)
+    result = bytes(a ^ b for a, b in zip(bytes1, bytes2))
+    return result.hex().upper()
+
+def gamma_encrypt(text, key_hex):
+    """Encrypt text using gamma cipher"""
+    text_hex = text_to_hex(text)
+    return xor_hex(text_hex, key_hex)
+
+def gamma_decrypt(cipher_hex, key_hex):
+    """Decrypt cipher text using gamma cipher"""
+    text_hex = xor_hex(cipher_hex, key_hex)
+    return hex_to_text(text_hex)
+
+def analyze_known_plaintext(c1_hex, c2_hex, known_p1):
+    """Analyze when one plaintext is known"""
+    # C1 ⊕ C2 = P1 ⊕ P2
+    c1_xor_c2 = xor_hex(c1_hex, c2_hex)
+    
+    # P2 = C1 ⊕ C2 ⊕ P1
+    known_p1_hex = text_to_hex(known_p1)
+    p2_hex = xor_hex(c1_xor_c2, known_p1_hex)
+    
+    return hex_to_text(p2_hex)
+
+def brute_force_common_patterns(c1_hex, c2_hex, pattern):
+    """Brute force common patterns to find plaintexts"""
+    c1_xor_c2 = xor_hex(c1_hex, c2_hex)
+    results = []
+    
+    # Try to find the pattern in the XOR result
+    pattern_hex = text_to_hex(pattern)
+    pattern_len = len(pattern_hex) // 2
+    
+    for i in range(0, len(c1_xor_c2) // 2 - pattern_len + 1):
+        segment = c1_xor_c2[i*2:(i+pattern_len)*2]
+        possible_p1_hex = xor_hex(segment, pattern_hex)
+        possible_p1 = hex_to_text(possible_p1_hex)
+        
+        if all(32 <= ord(c) <= 126 or ord(c) > 1024 for c in possible_p1):
+            possible_p2_hex = xor_hex(segment, possible_p1_hex)
+            possible_p2 = hex_to_text(possible_p2_hex)
+            
+            if all(32 <= ord(c) <= 126 or ord(c) > 1024 for c in possible_p2):
+                results.append((i, possible_p1, possible_p2))
+    
+    return results
+
+# Основная программа
+if __name__ == "__main__":
+    print("Лабораторная работа №8: Шифрование двух текстов одним ключом")
+    print("=" * 60)
+    
+    # Исходные данные из задания
+    key_hex = "05107F0E4E37D29410092E2257FFC80BB27054"
+    p1 = "Навашисхолящийот1204"
+    p2 = "ВсеверныйфилиалБанка"
+    
+    print("Исходные данные:")
+    print(f"Ключ: {key_hex}")
+    print(f"P1: {p1}")
+    print(f"P2: {p2}")
+    print()
+    
+    # Шифрование обоих текстов
+    c1_hex = gamma_encrypt(p1, key_hex)
+    c2_hex = gamma_encrypt(p2, key_hex)
+    
+    print("Шифротексты:")
+    print(f"C1: {c1_hex}")
+    print(f"C2: {c2_hex}")
+    print()
+    
+    # Демонстрация свойства: C1 ⊕ C2 = P1 ⊕ P2
+    c1_xor_c2 = xor_hex(c1_hex, c2_hex)
+    p1_xor_p2 = xor_hex(text_to_hex(p1), text_to_hex(p2))
+    
+    print("Проверка свойства C1 ⊕ C2 = P1 ⊕ P2:")
+    print(f"C1 ⊕ C2: {c1_xor_c2}")
+    print(f"P1 ⊕ P2: {p1_xor_p2}")
+    print(f"Свойство выполняется: {c1_xor_c2 == p1_xor_p2}")
+    print()
+    
+    # Анализ при известном одном из текстов
+    print("Анализ при известном P1:")
+    recovered_p2 = analyze_known_plaintext(c1_hex, c2_hex, p1)
+    print(f"Восстановленный P2: {recovered_p2}")
+    print(f"P2 корректно восстановлен: {recovered_p2 == p2}")
+    print()
+    
+    # Попытка анализа без знания ключа и текстов
+    print("Попытка анализа без знания текстов (с использованием шаблонов):")
+    common_patterns = ["Банка", "филиал", "Нава", "1204"]
+    
+    for pattern in common_patterns:
+        print(f"Анализ с шаблоном '{pattern}':")
+        results = brute_force_common_patterns(c1_hex, c2_hex, pattern)
+        
+        for pos, found_p1, found_p2 in results:
+            print(f"  Позиция {pos}: P1='{found_p1}', P2='{found_p2}'")
+        print()
+    
+    # Демонстрация уязвимости повторного использования ключа
+    print("Уязвимость повторного использования ключа:")
+    print("Зная C1 ⊕ C2 = P1 ⊕ P2, злоумышленник может:")
+    print("1. Угадать часть P1 (шаблон сообщения)")
+    print("2. Вычислить соответствующую часть P2 = C1 ⊕ C2 ⊕ P1")
+    print("3. Использовать найденную часть P2 для угадывания большего фрагмента P1")
+    print("4. Повторять процесс до полного восстановления обоих текстов")
