@@ -1,0 +1,82 @@
+def hex_to_text(hex_str):
+    """Convert hex string to text"""
+    bytes_obj = bytes.fromhex(hex_str)
+    return bytes_obj.decode('cp1251')
+
+def text_to_hex(text):
+    """Convert text to hex string"""
+    return text.encode('cp1251').hex().upper()
+
+def xor_hex(hex1, hex2):
+    """XOR two hex strings"""
+    bytes1 = bytes.fromhex(hex1)
+    bytes2 = bytes.fromhex(hex2)
+    result = bytes(a ^ b for a, b in zip(bytes1, bytes2))
+    return result.hex().upper()
+
+def gamma_encrypt(text, key):
+    """Encrypt text using gamma cipher"""
+    text_hex = text_to_hex(text)
+    key_hex = text_to_hex(key)
+    
+    if len(text_hex) != len(key_hex):
+        raise ValueError("Длина текста и ключа должна совпадать")
+    
+    return xor_hex(text_hex, key_hex)
+
+def gamma_decrypt(cipher_hex, key):
+    """Decrypt cipher text using gamma cipher"""
+    key_hex = text_to_hex(key)
+    
+    if len(cipher_hex) != len(key_hex):
+        raise ValueError("Длина шифротекста и ключа должна совпадать")
+    
+    text_hex = xor_hex(cipher_hex, key_hex)
+    return hex_to_text(text_hex)
+
+# Пример использования
+if __name__ == "__main__":
+    print("Лабораторная работа №7: Однократное гаммирование")
+    print("=" * 50)
+    
+    # Исходные данные из задания
+    center_key = "050C177F0E4E37D29410092E2257FFC80BB27054"
+    center_message = "Штирлиц - Вы Герой!!"
+    cipher_text = "DDFEFF8FE5A6C1F2B930CBD502941A38E55B5175"
+    
+    print("1. Проверка работы алгоритма на примере из задания:")
+    print(f"Ключ Центра: {center_key}")
+    print(f"Сообщение Центра: {center_message}")
+    print(f"Шифротекст у Мюллера: {cipher_text}")
+    print()
+    
+    # Проверка шифрования
+    calculated_cipher = gamma_encrypt(center_message, hex_to_text(center_key))
+    print(f"Проверка шифрования: {calculated_cipher == cipher_text}")
+    
+    # Проверка дешифрования
+    decrypted_message = gamma_decrypt(cipher_text, hex_to_text(center_key))
+    print(f"Проверка дешифрования: {decrypted_message == center_message}")
+    print()
+    
+    # Подбор ключа для получения нужного сообщения
+    print("2. Подбор ключа для получения сообщения 'С Новым Годом, друзья!':")
+    target_message = "С Новым Годом, друзья!"
+    
+    # Получаем hex представление целевого сообщения
+    target_hex = text_to_hex(target_message)
+    print(f"Целевое сообщение в hex: {target_hex}")
+    
+    # Вычисляем необходимый ключ
+    required_key_hex = xor_hex(cipher_text, target_hex)
+    required_key_text = hex_to_text(required_key_hex)
+    
+    print(f"Необходимый ключ в hex: {required_key_hex}")
+    print(f"Необходимый ключ в тексте: {required_key_text}")
+    print()
+    
+    # Проверка работы с полученным ключом
+    print("3. Проверка работы с полученным ключом:")
+    test_decryption = gamma_decrypt(cipher_text, required_key_text)
+    print(f"Результат дешифрования: {test_decryption}")
+    print(f"Сообщение корректно: {test_decryption == target_message}")
